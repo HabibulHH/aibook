@@ -1,7 +1,4 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "framework": "vite",
-  "rootDirectory": "ebook-reader"
+  "buildCommand": "cd ebook-reader && npm install && npm run build",
+  "outputDirectory": "ebook-reader/dist"
 }
