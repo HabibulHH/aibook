@@ -7,6 +7,12 @@ import ch06 from './chapters/ch06-huggingface-deep-dive.md?raw'
 import ch07 from './chapters/ch07-model-prepare-and-store.md?raw'
 import ch08 from './chapters/ch08-production-reality.md?raw'
 import ch09 from './chapters/ch09-hands-on.md?raw'
+import ch10 from './chapters/ch10-llm-basics.md?raw'
+import ch11 from './chapters/ch11-tools.md?raw'
+import ch12 from './chapters/ch12-agents.md?raw'
+import ch13 from './chapters/ch13-context-memory.md?raw'
+import ch14 from './chapters/ch14-rag.md?raw'
+import ch15 from './chapters/ch15-production.md?raw'
 
 export const bookMeta = {
   title: "AI for Developers",
@@ -26,4 +32,10 @@ export const chapters = [
   { id: 7, title: "Model Prepare ও Store", content: ch07 },
   { id: 8, title: "Production Reality", content: ch08 },
   { id: 9, title: "Hands-on — Download, Run, API", content: ch09 },
+  { id: 10, title: "LLM — Brain টা আসলে কী?", content: ch10 },
+  { id: 11, title: "Tools — Blind Brain-কে চোখ দেওয়া", content: ch11 },
+  { id: 12, title: "Agents — Chatbot থেকে Worker", content: ch12 },
+  { id: 13, title: "Context আর Memory — State কে Manage করে?", content: ch13 },
+  { id: 14, title: "RAG — LLM-কে তোমার Knowledge দেওয়া", content: ch14 },
+  { id: 15, title: "Production — Demo থেকে Real World", content: ch15 },
 ]
