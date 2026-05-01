@@ -218,8 +218,6 @@ Multi-Agent = Specialist agents + Orchestrator
             = Complex workflows handle করে
 ```
 
-কিন্তু এই loop চালাতে হলে একটা বড় সমস্যা — **state।**
+কিন্তু এই concept গুলো এখনো high-level। Code-এ আসলে কী হয়? Loop টা কোথায় শুরু, tool call request-এ কী আসে, তোমার code কী send করে?
 
-LLM stateless। প্রতিটা call fresh। তাহলে tool call 1-এর result tool call 3-এ কীভাবে থাকবে?
-
-এটাই পরের module — **Context আর Memory।**
+এটাই পরের module — **Tool Calling Code-এ কীভাবে চলে।**

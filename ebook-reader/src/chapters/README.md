@@ -17,6 +17,13 @@
 | 7 | `ch07-model-prepare-and-store.md` | Model Prepare ও Hugging Face এ Store | ✅ Written |
 | 8 | `ch08-production-reality.md` | Production Reality — Licensing, Cost, Serving | ✅ Written |
 | 9 | `ch09-hands-on.md` | Hands-on — Download, Run, API Serve, Fine-tune | ✅ Written |
+| 10 | `ch10-llm-basics.md` | LLM — Brain টা আসলে কী? | ✅ Written |
+| 11 | `ch11-tools.md` | Tools — Blind Brain-কে চোখ দেওয়া | ✅ Written |
+| 12 | `ch12-agents.md` | Agents — Chatbot থেকে Worker | ✅ Written |
+| 13 | `ch13-tool-calling.md` | Tool Calling — Agentic Loop Code-এ | ✅ Written |
+| 14 | `ch14-context-memory.md` | Context আর Memory — State কে Manage করে? | ✅ Written |
+| 15 | `ch15-rag.md` | RAG — LLM-কে তোমার Knowledge দেওয়া | ✅ Written |
+| 16 | `ch16-production.md` | Production — Demo থেকে Real World | ✅ Written |
 
 ---
 

@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tool Calling Simulation — Whatsmonk Agent</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1419;
+    --panel: #1a2028;
+    --panel-2: #232b36;
+    --border: #2d3947;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #25d366;
+    --accent-2: #34b7f1;
+    --user: #5b8def;
+    --assistant: #f0883e;
+    --tool: #d2a8ff;
+    --result: #3fb950;
+    --warn: #f85149;
+    --code-bg: #0d1117;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+    line-height: 1.5;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-logo {
+    width: 42px; height: 42px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #001; font-size: 20px;
+  }
+  .brand h1 { font-size: 18px; font-weight: 700; }
+  .brand p { font-size: 12px; color: var(--muted); }
+
+  .layout { display: grid; grid-template-columns: 360px 1fr 380px; gap: 16px; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; overflow: hidden;
+  }
+  .panel-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); margin-bottom: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+  }
+  .badge-tool { background: rgba(210, 168, 255, 0.15); color: var(--tool); }
+  .badge-user { background: rgba(91, 141, 239, 0.15); color: var(--user); }
+  .badge-assistant { background: rgba(240, 136, 62, 0.15); color: var(--assistant); }
+  .badge-result { background: rgba(63, 185, 80, 0.15); color: var(--result); }
+
+  /* Left: Query selection */
+  .queries h3 { font-size: 14px; margin-bottom: 4px; }
+  .queries p { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .query-btn {
+    display: block; width: 100%; text-align: left;
+    background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 12px; border-radius: 8px;
+    margin-bottom: 8px; cursor: pointer; font-size: 13px;
+    transition: all 0.15s;
+  }
+  .query-btn:hover { border-color: var(--accent); transform: translateX(2px); }
+  .query-btn.active { border-color: var(--accent); background: rgba(37, 211, 102, 0.08); }
+  .query-btn .scenario {
+    font-size: 10px; color: var(--muted); margin-top: 4px; display: block;
+  }
+
+  .controls { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn {
+    width: 100%; padding: 10px 14px; border-radius: 8px; cursor: pointer;
+    font-weight: 600; font-size: 13px; border: none; transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #001; }
+  .btn-primary:hover { background: #1ea951; }
+  .btn-primary:disabled { background: #2d3947; color: var(--muted); cursor: not-allowed; }
+  .btn-secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); }
+
+  /* Center: Loop visualization */
+  .loop-area { min-height: 600px; }
+  .iteration {
+    margin-bottom: 16px; padding: 14px; border-radius: 10px;
+    background: var(--panel-2); border: 1px solid var(--border);
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .iter-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed var(--border);
+  }
+  .iter-title { font-size: 13px; font-weight: 700; color: var(--accent); }
+  .iter-step { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+  pre {
+    background: var(--code-bg); padding: 10px 12px; border-radius: 6px;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 11px; overflow-x: auto; line-height: 1.5;
+    border: 1px solid var(--border);
+  }
+  .code-label {
+    font-size: 10px; color: var(--muted); margin: 8px 0 4px;
+    text-transform: uppercase; letter-spacing: 0.8px;
+  }
+
+  .step {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 0; border-bottom: 1px dotted var(--border);
+  }
+  .step:last-child { border-bottom: none; }
+  .step-icon {
+    width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .step-icon.api { background: var(--accent-2); color: #001; }
+  .step-icon.exec { background: var(--tool); color: #001; }
+  .step-icon.append { background: var(--result); color: #001; }
+  .step-icon.done { background: var(--accent); color: #001; }
+  .step-content { flex: 1; font-size: 12px; }
+  .step-content .label { font-weight: 600; margin-bottom: 2px; }
+  .step-content .detail { color: var(--muted); font-size: 11px; }
+
+  .stop-reason {
+    display: inline-block; padding: 3px 10px; border-radius: 12px;
+    font-size: 10px; font-weight: 700; font-family: monospace;
+    margin: 4px 0;
+  }
+  .sr-tool_use { background: rgba(210, 168, 255, 0.2); color: var(--tool); }
+  .sr-end_turn { background: rgba(63, 185, 80, 0.2); color: var(--result); }
+
+  .final-answer {
+    margin-top: 16px; padding: 16px; border-radius: 10px;
+    background: linear-gradient(135deg, rgba(37, 211, 102, 0.08), rgba(52, 183, 241, 0.08));
+    border: 1px solid var(--accent);
+  }
+  .final-answer .label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--accent); font-weight: 700; margin-bottom: 8px;
+  }
+  .final-answer .text { font-size: 14px; line-height: 1.6; }
+
+  /* Right: Messages history */
+  .messages-list { max-height: 720px; overflow-y: auto; padding-right: 4px; }
+  .messages-list::-webkit-scrollbar { width: 6px; }
+  .messages-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .msg {
+    margin-bottom: 8px; padding: 10px 12px; border-radius: 8px;
+    background: var(--panel-2); border-left: 3px solid var(--border);
+    font-size: 11px; animation: slideIn 0.3s ease;
+  }
+  .msg.user { border-left-color: var(--user); }
+  .msg.assistant { border-left-color: var(--assistant); }
+  .msg.tool-result { border-left-color: var(--result); }
+  .msg-role {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); margin-bottom: 4px; font-weight: 700;
+  }
+  .msg-content { font-family: "JetBrains Mono", monospace; font-size: 10px; line-height: 1.5; }
+  .msg-content .key { color: var(--accent-2); }
+  .msg-content .str { color: var(--accent); }
+  .msg-content .tool-block {
+    background: rgba(210, 168, 255, 0.08); padding: 6px 8px;
+    border-radius: 4px; margin-top: 4px; border: 1px solid rgba(210, 168, 255, 0.2);
+  }
+
+  .empty-state {
+    text-align: center; padding: 60px 20px; color: var(--muted); font-size: 13px;
+  }
+  .empty-state .icon { font-size: 36px; margin-bottom: 12px; opacity: 0.3; }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    margin-bottom: 16px;
+  }
+  .stat {
+    background: var(--panel-2); padding: 10px; border-radius: 8px;
+    text-align: center; border: 1px solid var(--border);
+  }
+  .stat-val { font-size: 18px; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  .tool-card {
+    background: var(--panel-2); padding: 8px 10px; border-radius: 6px;
+    margin-bottom: 6px; border: 1px solid var(--border); font-size: 11px;
+  }
+  .tool-card .tool-name { color: var(--tool); font-weight: 700; font-family: monospace; }
+  .tool-card .tool-desc { color: var(--muted); font-size: 10px; margin-top: 2px; }
+
+  .info-bar {
+    background: rgba(52, 183, 241, 0.08); border: 1px solid rgba(52, 183, 241, 0.3);
+    padding: 8px 12px; border-radius: 6px; font-size: 11px;
+    color: var(--accent-2); margin-bottom: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div class="brand">
+    <div class="brand-logo">W</div>
+    <div>
+      <h1>Whatsmonk Agent — Tool Calling Simulation</h1>
+      <p>Agentic loop visualization for the Whatsmonk CRM tool</p>
+    </div>
+  </div>
+  <div style="font-size: 11px; color: var(--muted);">Module 4: Tool Calling Code-এ</div>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT: Setup -->
+  <div class="panel">
+    <div class="panel-title">Whatsmonk CRM Tools <span class="badge badge-tool">5 tools</span></div>
+
+    <div class="tool-card">
+      <div class="tool-name">get_customer_info</div>
+      <div class="tool-desc">Phone number diye Whatsmonk CRM theke customer detail anbo</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">get_order_status</div>
+      <div class="tool-desc">Order ID diye delivery status check korbo</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">send_whatsapp_message</div>
+      <div class="tool-desc">Whatsmonk diye WhatsApp message pathai</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">get_recent_leads</div>
+      <div class="tool-desc">Whatsmonk er hot leads er list</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">update_lead_status</div>
+      <div class="tool-desc">Whatsmonk pipeline stage update kori</div>
+    </div>
+
+    <div class="panel-title" style="margin-top: 20px;">Try a User Query</div>
+    <div class="queries" id="queries"></div>
+
+    <div class="controls">
+      <button id="next-btn" class="btn btn-primary" disabled>▶ Next Step</button>
+      <button id="reset-btn" class="btn btn-secondary" style="margin-top: 8px;">⟲ Reset</button>
+    </div>
+  </div>
+
+  <!-- CENTER: Loop visualization -->
+  <div class="panel">
+    <div class="panel-title">
+      Agentic Loop Execution
+      <span id="loop-status" class="badge badge-user">Idle</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-val" id="iter-count">0</div>
+        <div class="stat-label">Iterations</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" id="tool-count">0</div>
+        <div class="stat-label">Tool Calls</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" id="msg-count">0</div>
+        <div class="stat-label">Messages</div>
+      </div>
+    </div>
+
+    <div class="loop-area" id="loop-area">
+      <div class="empty-state">
+        <div class="icon">⚙</div>
+        <div>User query select koro, tarpor "Next Step" press koro</div>
+        <div style="margin-top: 8px; font-size: 11px;">Loop step by step run hobe — code-এ ki hochche dekhbe</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Messages list -->
+  <div class="panel">
+    <div class="panel-title">
+      messages[] — Conversation State
+      <span class="badge badge-user" id="msg-badge">0 items</span>
+    </div>
+    <div class="info-bar">
+      Eta agent-er memory. Prottek API call e puro list jay. LLM stateless tai history accumulate kora hoy.
+    </div>
+    <div class="messages-list" id="messages-list">
+      <div class="empty-state" style="padding: 40px 10px;">
+        <div class="icon">📭</div>
+        <div style="font-size: 12px;">Empty — query select koro</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+// ====== Mock scenarios — simulating real LLM behavior ======
+const scenarios = [
+  {
+    id: "single-tool",
+    label: "Customer info dorkar",
+    query: "Customer 01711-123456 er detail dao",
+    scenario: "Single tool call → final answer",
+    iterations: [
+      {
+        stop_reason: "tool_use",
+        content: [
+          { type: "tool_use", id: "toolu_01A", name: "get_customer_info", input: { phone: "01711-123456" } }
+        ],
+        toolResults: [
+          { id: "toolu_01A", result: { name: "Rahim Uddin", email: "rahim@example.com", total_orders: 12, ltv_bdt: 45000, last_active: "2 days ago" } }
+        ]
+      },
+      {
+        stop_reason: "end_turn",
+        content: [
+          { type: "text", text: "Customer Rahim Uddin (rahim@example.com), total 12 ta order kore total 45,000 BDT er kena kata korechen. Last active 2 days ago. Whatsmonk e ei customer ekjon high-value lead." }
+        ]
+      }
+    ]
+  },
+  {
+    id: "multi-step",
+    label: "Order status + WhatsApp pathao",
+    query: "Order 1234 er status check kore customer ke WhatsApp e janao",
+    scenario: "Sequential tool calls (chained)",
+    iterations: [
+      {
+        stop_reason: "tool_use",
+        content: [
+          { type: "text", text: "Ami order status check kori age." },
+          { type: "tool_use", id: "toolu_01B", name: "get_order_status", input: { order_id: "1234" } }
+        ],
+        toolResults: [
+          { id: "toolu_01B", result: { order_id: "1234", customer_phone: "01711-123456", status: "shipped", courier: "Pathao", eta: "tomorrow", tracking: "PTH-9988" } }
+        ]
+      },
+      {
+        stop_reason: "tool_use",
+        content: [
+          { type: "text", text: "Order shipped. Ekhon customer ke WhatsApp pathai." },
+          { type: "tool_use", id: "toolu_01C", name: "send_whatsapp_message", input: { phone: "01711-123456", message: "Apnar order #1234 ship hoyeche, Pathao diye kal pouchhabe. Tracking: PTH-9988" } }
+        ],
+        toolResults: [
+          { id: "toolu_01C", result: { sent: true, message_id: "wmsg_xyz789", delivered_at: "2026-05-01T14:32:01Z" } }
+        ]
+      },
+      {
+        stop_reason: "end_turn",
+        content: [
+          { type: "text", text: "Done! Order #1234 Pathao diye ship hoyeche, kal pouchhabe. Customer ke Whatsmonk theke notification pathiyechi — message delivered hoyeche." }
+        ]
+      }
+    ]
+  },
+  {
+    id: "parallel",
+    label: "Multi-customer compare",
+    query: "Recent hot leads dekhao",
+    scenario: "Single tool call with list result",
+    iterations: [
+      {
+        stop_reason: "tool_use",
+        content: [
+          { type: "tool_use", id: "toolu_01D", name: "get_recent_leads", input: { limit: 5, status: "hot" } }
+        ],
+        toolResults: [
+          { id: "toolu_01D", result: { leads: [
+            { name: "Karim", phone: "01712-...", score: 92, source: "WhatsApp" },
+            { name: "Salma", phone: "01718-...", score: 88, source: "Facebook Ad" },
+            { name: "Tanvir", phone: "01719-...", score: 85, source: "Whatsmonk Form" }
+          ] } }
+        ]
+      },
+      {
+        stop_reason: "end_turn",
+        content: [
+          { type: "text", text: "Whatsmonk e top 3 hot leads:\n1. Karim (score 92, WhatsApp)\n2. Salma (88, Facebook Ad)\n3. Tanvir (85, Whatsmonk Form)\n\nKarim ke prothome contact korar suggestion deboi — highest score." }
+        ]
+      }
+    ]
+  },
+  {
+    id: "no-tool",
+    label: "Tool dorkar nai",
+    query: "Whatsmonk ki?",
+    scenario: "stop_reason = end_turn from start",
+    iterations: [
+      {
+        stop_reason: "end_turn",
+        content: [
+          { type: "text", text: "Whatsmonk ekta CRM tool — WhatsApp-based customer relationship management. Lead capture, conversation manage, automated message, pipeline tracking — sob ek jaygay. (Ei answer er jonno tool call dorkar nai, ai general knowledge use korechi.)" }
+        ]
+      }
+    ]
+  }
+];
+
+let currentScenario = null;
+let currentIterIndex = 0;
+let currentSubStep = 0;
+let messages = [];
+let toolCallCount = 0;
+
+const queriesDiv = document.getElementById('queries');
+const loopArea = document.getElementById('loop-area');
+const messagesList = document.getElementById('messages-list');
+const nextBtn = document.getElementById('next-btn');
+const resetBtn = document.getElementById('reset-btn');
+const loopStatus = document.getElementById('loop-status');
+const iterCountEl = document.getElementById('iter-count');
+const toolCountEl = document.getElementById('tool-count');
+const msgCountEl = document.getElementById('msg-count');
+const msgBadge = document.getElementById('msg-badge');
+
+// Render scenario buttons
+scenarios.forEach((s, idx) => {
+  const btn = document.createElement('button');
+  btn.className = 'query-btn';
+  btn.dataset.idx = idx;
+  btn.innerHTML = `${s.label}<span class="scenario">${s.scenario}</span>`;
+  btn.onclick = () => selectScenario(idx);
+  queriesDiv.appendChild(btn);
+});
+
+function selectScenario(idx) {
+  reset();
+  currentScenario = scenarios[idx];
+  document.querySelectorAll('.query-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.query-btn')[idx].classList.add('active');
+
+  // Add user message immediately
+  messages.push({ role: 'user', content: currentScenario.query });
+  renderMessages();
+
+  loopArea.innerHTML = `
+    <div class="iteration" style="border-color: var(--user);">
+      <div class="iter-header">
+        <span class="iter-title">User Query</span>
+        <span class="iter-step">Initial input</span>
+      </div>
+      <div style="font-size: 13px; padding: 8px 0;">"${currentScenario.query}"</div>
+      <div class="code-label">messages = [</div>
+      <pre>  { "role": "user", "content": "${currentScenario.query}" }
+]</pre>
+      <div style="margin-top: 10px; font-size: 12px; color: var(--muted);">
+        ▶ "Next Step" press koro → API call hobe
+      </div>
+    </div>
+  `;
+
+  nextBtn.disabled = false;
+  loopStatus.textContent = 'Ready';
+  loopStatus.className = 'badge badge-user';
+  updateStats();
+}
+
+function nextStep() {
+  if (!currentScenario) return;
+
+  if (currentIterIndex >= currentScenario.iterations.length) {
+    nextBtn.disabled = true;
+    loopStatus.textContent = 'Done';
+    loopStatus.className = 'badge badge-result';
+    return;
+  }
+
+  const iter = currentScenario.iterations[currentIterIndex];
+  const iterNum = currentIterIndex + 1;
+
+  // SubStep 0: Show API call
+  if (currentSubStep === 0) {
+    addIteration(iterNum, iter, 'api-call');
+    loopStatus.textContent = 'Calling LLM…';
+    loopStatus.className = 'badge badge-assistant';
+    currentSubStep = 1;
+    return;
+  }
+
+  // SubStep 1: Show response
+  if (currentSubStep === 1) {
+    addIteration(iterNum, iter, 'response');
+    if (iter.stop_reason === 'tool_use') {
+      loopStatus.textContent = 'Tool execute hocche';
+      loopStatus.className = 'badge badge-tool';
+      currentSubStep = 2;
+    } else {
+      // end_turn — final answer
+      messages.push({ role: 'assistant', content: iter.content });
+      renderMessages();
+      addFinalAnswer(iter.content.find(b => b.type === 'text').text);
+      loopStatus.textContent = 'Done';
+      loopStatus.className = 'badge badge-result';
+      currentIterIndex++;
+      currentSubStep = 0;
+      nextBtn.disabled = true;
+      updateStats();
+    }
+    return;
+  }
+
+  // SubStep 2: Execute tools + append messages
+  if (currentSubStep === 2) {
+    addIteration(iterNum, iter, 'execute');
+    // append assistant tool call to messages
+    messages.push({ role: 'assistant', content: iter.content });
+    // append tool results as user message
+    const toolResultBlocks = iter.toolResults.map(tr => ({
+      type: 'tool_result',
+      tool_use_id: tr.id,
+      content: JSON.stringify(tr.result)
+    }));
+    messages.push({ role: 'user', content: toolResultBlocks });
+    toolCallCount += iter.content.filter(b => b.type === 'tool_use').length;
+    renderMessages();
+    currentIterIndex++;
+    currentSubStep = 0;
+    loopStatus.textContent = 'Loop continue…';
+    loopStatus.className = 'badge badge-assistant';
+    updateStats();
+    return;
+  }
+}
+
+function addIteration(num, iter, stage) {
+  const existing = document.querySelector(`.iteration[data-iter="${num}"]`);
+  if (existing && stage !== 'api-call') {
+    appendStage(existing, iter, stage);
+    return;
+  }
+
+  // remove empty state if first iteration
+  const empty = loopArea.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = 'iteration';
+  div.dataset.iter = num;
+  div.innerHTML = `
+    <div class="iter-header">
+      <span class="iter-title">Iteration ${num}</span>
+      <span class="iter-step">while loop run #${num}</span>
+    </div>
+    <div class="iter-body"></div>
+  `;
+  loopArea.appendChild(div);
+  appendStage(div, iter, stage);
+  div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function appendStage(iterDiv, iter, stage) {
+  const body = iterDiv.querySelector('.iter-body');
+
+  if (stage === 'api-call') {
+    body.innerHTML += `
+      <div class="step">
+        <div class="step-icon api">→</div>
+        <div class="step-content">
+          <div class="label">client.messages.create()</div>
+          <div class="detail">messages (${messages.length} items) + tools (5) pathano hocche LLM e</div>
+        </div>
+      </div>
+    `;
+  } else if (stage === 'response') {
+    const blocks = iter.content;
+    const blockSummary = blocks.map(b => {
+      if (b.type === 'tool_use') {
+        return `<div class="msg-content tool-block">
+          <span class="key">type</span>: <span class="str">"tool_use"</span><br/>
+          <span class="key">id</span>: <span class="str">"${b.id}"</span><br/>
+          <span class="key">name</span>: <span class="str">"${b.name}"</span><br/>
+          <span class="key">input</span>: ${syntaxJson(b.input)}
+        </div>`;
+      } else {
+        return `<div class="msg-content tool-block" style="background: rgba(240, 136, 62, 0.08); border-color: rgba(240, 136, 62, 0.2);">
+          <span class="key">type</span>: <span class="str">"text"</span><br/>
+          <span style="color: var(--text);">"${escapeHtml(b.text)}"</span>
+        </div>`;
+      }
+    }).join('');
+
+    body.innerHTML += `
+      <div class="step">
+        <div class="step-icon api" style="background: var(--assistant);">←</div>
+        <div class="step-content">
+          <div class="label">Response received</div>
+          <div class="detail">stop_reason: <span class="stop-reason sr-${iter.stop_reason}">${iter.stop_reason}</span></div>
+          <div class="code-label">response.content</div>
+          ${blockSummary}
+        </div>
+      </div>
+    `;
+  } else if (stage === 'execute') {
+    const toolBlocks = iter.content.filter(b => b.type === 'tool_use');
+    const execList = iter.toolResults.map((tr, i) => {
+      const tb = toolBlocks[i];
+      return `
+        <div class="msg-content tool-block" style="background: rgba(63, 185, 80, 0.08); border-color: rgba(63, 185, 80, 0.2);">
+          <div style="color: var(--tool); font-weight: 700;">${tb.name}(${syntaxJsonInline(tb.input)})</div>
+          <div style="color: var(--muted); margin: 4px 0; font-size: 9px;">↓ executed locally</div>
+          <div style="color: var(--result);">${syntaxJson(tr.result)}</div>
+        </div>
+      `;
+    }).join('');
+
+    body.innerHTML += `
+      <div class="step">
+        <div class="step-icon exec">⚙</div>
+        <div class="step-content">
+          <div class="label">Tool execution (LLM-agnostic code)</div>
+          ${execList}
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-icon append">+</div>
+        <div class="step-content">
+          <div class="label">messages.append() × 2</div>
+          <div class="detail">Assistant tool call + user tool_result append kora hocche → continue ↻</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function addFinalAnswer(text) {
+  loopArea.innerHTML += `
+    <div class="final-answer">
+      <div class="label">✓ Loop Exited — Final Answer</div>
+      <div class="text">${escapeHtml(text).replace(/\n/g, '<br/>')}</div>
+    </div>
+  `;
+}
+
+function renderMessages() {
+  if (messages.length === 0) {
+    messagesList.innerHTML = `<div class="empty-state" style="padding: 40px 10px;">
+      <div class="icon">📭</div><div style="font-size: 12px;">Empty</div>
+    </div>`;
+    return;
+  }
+
+  messagesList.innerHTML = messages.map((m, i) => {
+    let body = '';
+    if (typeof m.content === 'string') {
+      body = `<div style="color: var(--text);">"${escapeHtml(m.content)}"</div>`;
+    } else if (Array.isArray(m.content)) {
+      body = m.content.map(b => {
+        if (b.type === 'tool_use') {
+          return `<div class="tool-block">
+            <span class="key">tool_use</span> → <span style="color: var(--tool);">${b.name}</span>(${syntaxJsonInline(b.input)})
+          </div>`;
+        } else if (b.type === 'tool_result') {
+          return `<div class="tool-block" style="background: rgba(63, 185, 80, 0.08); border-color: rgba(63, 185, 80, 0.2);">
+            <span class="key">tool_result</span> for <span class="str">${b.tool_use_id}</span><br/>
+            <span style="color: var(--muted); font-size: 9px;">${escapeHtml(b.content.substring(0, 80))}${b.content.length > 80 ? '…' : ''}</span>
+          </div>`;
+        } else if (b.type === 'text') {
+          return `<div style="color: var(--text);">"${escapeHtml(b.text.substring(0, 100))}${b.text.length > 100 ? '…' : ''}"</div>`;
+        }
+      }).join('');
+    }
+
+    let cls = m.role;
+    if (Array.isArray(m.content) && m.content[0] && m.content[0].type === 'tool_result') cls = 'tool-result';
+
+    return `
+      <div class="msg ${cls}">
+        <div class="msg-role">[${i}] ${m.role}${cls === 'tool-result' ? ' (tool_result)' : ''}</div>
+        ${body}
+      </div>
+    `;
+  }).join('');
+
+  msgBadge.textContent = `${messages.length} items`;
+  messagesList.scrollTop = messagesList.scrollHeight;
+}
+
+function updateStats() {
+  iterCountEl.textContent = currentIterIndex;
+  toolCountEl.textContent = toolCallCount;
+  msgCountEl.textContent = messages.length;
+}
+
+function syntaxJson(obj) {
+  let json = JSON.stringify(obj, null, 2);
+  json = escapeHtml(json);
+  json = json.replace(/"([^"]+)":/g, '<span class="key">"$1"</span>:');
+  json = json.replace(/: "([^"]+)"/g, ': <span class="str">"$1"</span>');
+  return `<pre style="margin-top: 4px; font-size: 10px;">${json}</pre>`;
+}
+
+function syntaxJsonInline(obj) {
+  let json = JSON.stringify(obj);
+  json = escapeHtml(json);
+  return `<span style="color: var(--accent-2);">${json}</span>`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function reset() {
+  currentScenario = null;
+  currentIterIndex = 0;
+  currentSubStep = 0;
+  messages = [];
+  toolCallCount = 0;
+  document.querySelectorAll('.query-btn').forEach(b => b.classList.remove('active'));
+  loopArea.innerHTML = `
+    <div class="empty-state">
+      <div class="icon">⚙</div>
+      <div>User query select koro, tarpor "Next Step" press koro</div>
+      <div style="margin-top: 8px; font-size: 11px;">Loop step by step run hobe — code-এ ki hochche dekhbe</div>
+    </div>
+  `;
+  renderMessages();
+  nextBtn.disabled = true;
+  loopStatus.textContent = 'Idle';
+  loopStatus.className = 'badge badge-user';
+  updateStats();
+}
+
+nextBtn.onclick = nextStep;
+resetBtn.onclick = reset;
+</script>
+</body>
+</html>
