@@ -1,6 +1,33 @@
 import { useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import Quiz from './Quiz'
+
+const markdownComponents = {
+  pre({ children, ...props }) {
+    const codeChild = Array.isArray(children) ? children[0] : children
+    const className = codeChild?.props?.className || ''
+    const lang = /language-(\w+)/.exec(className)?.[1]
+
+    if (lang === 'quiz') {
+      const raw = String(codeChild?.props?.children ?? '').trim()
+      try {
+        const questions = JSON.parse(raw)
+        return <Quiz questions={questions} />
+      } catch (e) {
+        return (
+          <pre className="text-red-500 text-sm whitespace-pre-wrap">
+            Quiz JSON parse error: {e.message}
+            {'\n\n'}
+            {raw}
+          </pre>
+        )
+      }
+    }
+
+    return <pre {...props}>{children}</pre>
+  },
+}
 
 export default function Reader({ chapter, totalChapters, onPrev, onNext }) {
   const contentRef = useRef(null)
@@ -28,7 +55,10 @@ export default function Reader({ chapter, totalChapters, onPrev, onNext }) {
 
         {/* Markdown content */}
         <div className="prose font-serif text-neutral-800 dark:text-neutral-200 text-base md:text-lg">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={markdownComponents}
+          >
             {chapter.content}
           </ReactMarkdown>
         </div>

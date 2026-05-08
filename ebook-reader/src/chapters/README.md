@@ -24,6 +24,9 @@
 | 14 | `ch14-context-memory.md` | Context আর Memory — State কে Manage করে? | ✅ Written |
 | 15 | `ch15-rag.md` | RAG — LLM-কে তোমার Knowledge দেওয়া | ✅ Written |
 | 16 | `ch16-production.md` | Production — Demo থেকে Real World | ✅ Written |
+| 17 | `ch17-harness-engineering-intro.md` | Harness Engineering — Agent এর চারপাশে যা থাকে | ✅ Written |
+| 18 | `ch18-guides.md` | Guides — Agent-কে কী করতে বলবে | ✅ Written |
+| 19 | `ch19-sensors.md` | Sensors — Agent কী করল সেটা Check করো | ✅ Written |
 
 ---
 

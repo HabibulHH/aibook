@@ -14,6 +14,9 @@ import ch13 from './chapters/ch13-tool-calling.md?raw'
 import ch14 from './chapters/ch14-context-memory.md?raw'
 import ch15 from './chapters/ch15-rag.md?raw'
 import ch16 from './chapters/ch16-production.md?raw'
+import ch17 from './chapters/ch17-harness-engineering-intro.md?raw'
+import ch18 from './chapters/ch18-guides.md?raw'
+import ch19 from './chapters/ch19-sensors.md?raw'
 
 export const bookMeta = {
   title: "AI for Developers",
@@ -40,4 +43,7 @@ export const chapters = [
   { id: 14, title: "Context আর Memory — State কে Manage করে?", content: ch14 },
   { id: 15, title: "RAG — LLM-কে তোমার Knowledge দেওয়া", content: ch15 },
   { id: 16, title: "Production — Demo থেকে Real World", content: ch16 },
+  { id: 17, title: "Harness Engineering — Agent এর চারপাশে যা থাকে", content: ch17 },
+  { id: 18, title: "Guides — Agent-কে কী করতে বলবে", content: ch18 },
+  { id: 19, title: "Sensors — Agent কী করল সেটা Check করো", content: ch19 },
 ]
